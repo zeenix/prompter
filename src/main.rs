@@ -33,12 +33,14 @@ pub struct PrompterCallback {
 impl PrompterCallback {
     pub async fn prompt_ready(
         &self,
-        _reply: &str,
+        reply: &str,
         _properties: HashMap<&str, OwnedValue>,
         exchange: &str,
         #[zbus(connection)] connection: &zbus::Connection,
     ) {
-        println!("{}", exchange);
+        if reply == "no" {
+            std::process::exit(0);
+        }
 
         let mut properties: HashMap<&str, OwnedValue> = HashMap::new();
         properties.insert("continue-label", Value::new("Lock").try_to_owned().unwrap());
@@ -55,11 +57,17 @@ impl PrompterCallback {
         properties.insert("caller-window", Value::new("").try_to_owned().unwrap());
         properties.insert("cancel-label", Value::new("Cancel").try_to_owned().unwrap());
 
-        let prompter = PrompterProxy::new(&connection).await.unwrap();
-        prompter
-            .perform_prompt(self.path.clone(), "confirm", properties, exchange)
-            .await
-            .unwrap();
+        let path = self.path.clone();
+        let connection = connection.clone();
+        let exchange = exchange.to_owned();
+
+        tokio::spawn(async move {
+            let prompter = PrompterProxy::new(&connection).await.unwrap();
+            prompter
+                .perform_prompt(path, "confirm", properties, &exchange)
+                .await
+                .unwrap();
+        });
     }
 
     pub async fn prompt_done(&self) {}
@@ -68,7 +76,7 @@ impl PrompterCallback {
 impl PrompterCallback {
     pub async fn new() -> Self {
         Self {
-            path: OwnedObjectPath::try_from(format!("/org/gnome/keyring/Prompt/p6")).unwrap(),
+            path: OwnedObjectPath::try_from("/org/gnome/keyring/Prompt/p6".to_string()).unwrap(),
         }
     }
 }
@@ -85,7 +93,7 @@ async fn main() {
         .unwrap();
 
     let prompter = PrompterProxy::new(&connection).await.unwrap();
-    let path = OwnedObjectPath::try_from(format!("/org/gnome/keyring/Prompt/p6")).unwrap();
+    let path = OwnedObjectPath::try_from("/org/gnome/keyring/Prompt/p6".to_string()).unwrap();
     prompter.begin_prompting(&path).await.unwrap();
 
     std::future::pending::<()>().await;
