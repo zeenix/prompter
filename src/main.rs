@@ -1,29 +1,7 @@
 use std::collections::HashMap;
-
-use zbus::{
-    fdo, interface, proxy,
-    zvariant::{OwnedObjectPath, OwnedValue, Value, SerializeDict, DeserializeDict, Type},
-    Connection,
+use zbus::zvariant::{
+    self, serialized::Data, DeserializeDict, SerializeDict, Type, Value, NATIVE_ENDIAN,
 };
-
-#[proxy(
-    default_service = "org.gnome.keyring.SystemPrompter",
-    interface = "org.gnome.keyring.internal.Prompter",
-    default_path = "/org/gnome/keyring/Prompter"
-)]
-pub trait Prompter {
-    fn begin_prompting(&self, callback: &OwnedObjectPath) -> Result<(), fdo::Error>;
-
-    fn perform_prompt(
-        &self,
-        callback: OwnedObjectPath,
-        type_: &str,
-        properties: Properties,
-        exchange: &str,
-    ) -> Result<(), fdo::Error>;
-
-    fn stop_prompting(&self, callback: OwnedObjectPath) -> Result<(), fdo::Error>;
-}
 
 #[derive(Debug, DeserializeDict, SerializeDict, Type)]
 #[zvariant(signature = "dict")]
@@ -38,84 +16,37 @@ pub struct Properties {
     cancel_label: Option<String>,
 }
 
-pub struct PrompterCallback {
-    path: OwnedObjectPath,
-}
+fn main() {
+    let data = [
+        2, 0, 0, 0, 110, 111, 0, 0, 212, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 0, 99, 111, 110, 116, 105,
+        110, 117, 101, 45, 108, 97, 98, 101, 108, 0, 1, 118, 0, 1, 115, 0, 0, 0, 0, 4, 0, 0, 0, 76,
+        111, 99, 107, 0, 0, 0, 0, 13, 0, 0, 0, 99, 97, 108, 108, 101, 114, 45, 119, 105, 110, 100,
+        111, 119, 0, 1, 118, 0, 1, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 109, 101, 115, 115,
+        97, 103, 101, 0, 1, 118, 0, 1, 115, 0, 0, 0, 12, 0, 0, 0, 76, 111, 99, 107, 32, 75, 101,
+        121, 114, 105, 110, 103, 0, 0, 0, 0, 12, 0, 0, 0, 99, 97, 110, 99, 101, 108, 45, 108, 97,
+        98, 101, 108, 0, 1, 118, 0, 1, 115, 0, 0, 6, 0, 0, 0, 67, 97, 110, 99, 101, 108, 0, 0, 0,
+        0, 0, 0, 11, 0, 0, 0, 100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110, 0, 1, 118, 0,
+        1, 115, 0, 0, 0, 31, 0, 0, 0, 67, 111, 110, 102, 105, 114, 109, 32, 108, 111, 99, 107, 105,
+        110, 103, 32, 39, 108, 111, 103, 105, 110, 39, 32, 75, 101, 121, 114, 105, 110, 103, 0, 23,
+        1, 0, 0, 91, 115, 120, 45, 97, 101, 115, 45, 49, 93, 10, 112, 117, 98, 108, 105, 99, 61,
+        65, 73, 104, 56, 78, 89, 115, 66, 67, 114, 115, 51, 50, 75, 76, 84, 52, 57, 119, 120, 115,
+        122, 51, 78, 79, 117, 97, 113, 113, 87, 68, 70, 101, 83, 55, 120, 80, 47, 78, 120, 98, 53,
+        49, 82, 72, 80, 107, 111, 103, 54, 82, 65, 99, 107, 120, 49, 112, 54, 116, 110, 67, 108,
+        97, 81, 53, 72, 116, 98, 104, 74, 49, 50, 50, 112, 73, 50, 77, 49, 83, 55, 100, 113, 107,
+        109, 80, 75, 105, 85, 73, 52, 49, 118, 43, 112, 90, 103, 119, 120, 68, 80, 117, 49, 98,
+        113, 103, 43, 78, 84, 102, 113, 73, 73, 97, 56, 71, 88, 86, 90, 100, 105, 118, 81, 57, 65,
+        51, 112, 49, 110, 112, 112, 88, 104, 72, 71, 112, 51, 51, 113, 119, 55, 47, 106, 81, 103,
+        108, 56, 71, 84, 68, 111, 47, 79, 67, 57, 83, 66, 102, 83, 97, 78, 78, 76, 49, 112, 55, 81,
+        74, 76, 52, 105, 97, 84, 116, 77, 100, 105, 48, 47, 77, 57, 43, 47, 43, 116, 72, 90, 52,
+        100, 56, 107, 83, 85, 98, 69, 89, 107, 90, 53, 67, 112, 106, 115, 77, 107, 74, 113, 85, 57,
+        104, 82, 107, 48, 77, 106, 119, 105, 87, 49, 80, 108, 104, 48, 49, 86, 67, 49, 98, 109,
+        104, 101, 86, 52, 89, 107, 87, 106, 54, 112, 115, 97, 114, 102, 69, 50, 50, 113, 69, 75,
+        118, 89, 79, 101, 71, 55, 72, 99, 81, 65, 61, 61, 10, 0,
+    ];
+    let ctxt = zvariant::serialized::Context::new_dbus(NATIVE_ENDIAN, 0);
+    let data = Data::new(&data, ctxt);
 
-#[interface(name = "org.gnome.keyring.internal.Prompter.Callback")]
-impl PrompterCallback {
-    pub async fn prompt_ready(
-        &self,
-        reply: &str,
-        _properties: Properties,
-        exchange: &str,
-        #[zbus(connection)] connection: &zbus::Connection,
-    ) {
-        if reply == "no" {
-            std::process::exit(0);
-        }
-
-        let mut properties: HashMap<&str, OwnedValue> = HashMap::new();
-        properties.insert("continue-label", Value::new("Lock").try_to_owned().unwrap());
-        properties.insert(
-            "description",
-            Value::new(format!("Confirm locking '{}', Keyring.", "login"))
-                .try_to_owned()
-                .unwrap(),
-        );
-        properties.insert(
-            "message",
-            Value::new("Lock Keyring").try_to_owned().unwrap(),
-        );
-        properties.insert("caller-window", Value::new("").try_to_owned().unwrap());
-        properties.insert("cancel-label", Value::new("Cancel").try_to_owned().unwrap());
-
-        let p = Properties {
-            continue_label: Some("Lock".to_owned()),
-            description: Some("Confirm locking 'login' Keyring".to_owned()),
-            message: Some("Lock Keyring".to_owned()),
-            caller_window: Some(String::new()),
-            cancel_label: Some("Cancel".to_owned()),
-        };
-
-        let path = self.path.clone();
-        let connection = connection.clone();
-        let exchange = exchange.to_owned();
-
-        tokio::spawn(async move {
-            let prompter = PrompterProxy::new(&connection).await.unwrap();
-            prompter
-                .perform_prompt(path, "confirm", p, &exchange)
-                .await
-                .unwrap();
-        });
-    }
-
-    pub async fn prompt_done(&self) {}
-}
-
-impl PrompterCallback {
-    pub async fn new() -> Self {
-        Self {
-            path: OwnedObjectPath::try_from("/org/gnome/keyring/Prompt/p6".to_string()).unwrap(),
-        }
-    }
-}
-
-#[tokio::main]
-async fn main() {
-    let connection = Connection::session().await.unwrap();
-
-    let callback = PrompterCallback::new().await;
-    connection
-        .object_server()
-        .at("/org/gnome/keyring/Prompt/p6", callback)
-        .await
-        .unwrap();
-
-    let prompter = PrompterProxy::new(&connection).await.unwrap();
-    let path = OwnedObjectPath::try_from("/org/gnome/keyring/Prompt/p6".to_string()).unwrap();
-    prompter.begin_prompting(&path).await.unwrap();
-
-    std::future::pending::<()>().await;
+    let ((_r, p, _e), _): ((&str, HashMap<&str, Value<'_>>, &str), _) = data.deserialize().unwrap();
+    println!("{:?}", p);
+    let ((_r, _p, _e), _): ((&str, Properties, &str), _) = data.deserialize().unwrap();
 }
