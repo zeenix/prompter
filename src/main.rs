@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use zbus::{
     fdo, interface, proxy,
-    zvariant::{OwnedObjectPath, OwnedValue, Value},
+    zvariant::{OwnedObjectPath, OwnedValue, Value, SerializeDict, DeserializeDict, Type},
     Connection,
 };
 
@@ -18,11 +18,24 @@ pub trait Prompter {
         &self,
         callback: OwnedObjectPath,
         type_: &str,
-        properties: HashMap<&str, OwnedValue>,
+        properties: Properties,
         exchange: &str,
     ) -> Result<(), fdo::Error>;
 
     fn stop_prompting(&self, callback: OwnedObjectPath) -> Result<(), fdo::Error>;
+}
+
+#[derive(Debug, DeserializeDict, SerializeDict, Type)]
+#[zvariant(signature = "dict")]
+pub struct Properties {
+    #[zvariant(rename = "continue-label")]
+    continue_label: Option<String>,
+    description: Option<String>,
+    message: Option<String>,
+    #[zvariant(rename = "caller-window")]
+    caller_window: Option<String>,
+    #[zvariant(rename = "cancel-label")]
+    cancel_label: Option<String>,
 }
 
 pub struct PrompterCallback {
@@ -34,7 +47,7 @@ impl PrompterCallback {
     pub async fn prompt_ready(
         &self,
         reply: &str,
-        _properties: HashMap<&str, OwnedValue>,
+        _properties: Properties,
         exchange: &str,
         #[zbus(connection)] connection: &zbus::Connection,
     ) {
@@ -57,6 +70,14 @@ impl PrompterCallback {
         properties.insert("caller-window", Value::new("").try_to_owned().unwrap());
         properties.insert("cancel-label", Value::new("Cancel").try_to_owned().unwrap());
 
+        let p = Properties {
+            continue_label: Some("Lock".to_owned()),
+            description: Some("Confirm locking 'login' Keyring".to_owned()),
+            message: Some("Lock Keyring".to_owned()),
+            caller_window: Some(String::new()),
+            cancel_label: Some("Cancel".to_owned()),
+        };
+
         let path = self.path.clone();
         let connection = connection.clone();
         let exchange = exchange.to_owned();
@@ -64,7 +85,7 @@ impl PrompterCallback {
         tokio::spawn(async move {
             let prompter = PrompterProxy::new(&connection).await.unwrap();
             prompter
-                .perform_prompt(path, "confirm", properties, &exchange)
+                .perform_prompt(path, "confirm", p, &exchange)
                 .await
                 .unwrap();
         });
