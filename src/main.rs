@@ -3,19 +3,6 @@ use zbus::zvariant::{
     self, serialized::Data, DeserializeDict, SerializeDict, Type, Value, NATIVE_ENDIAN,
 };
 
-#[derive(Debug, DeserializeDict, SerializeDict, Type)]
-#[zvariant(signature = "dict")]
-pub struct Properties {
-    #[zvariant(rename = "continue-label")]
-    continue_label: Option<String>,
-    description: Option<String>,
-    message: Option<String>,
-    #[zvariant(rename = "caller-window")]
-    caller_window: Option<String>,
-    #[zvariant(rename = "cancel-label")]
-    cancel_label: Option<String>,
-}
-
 fn main() {
     let data = [
         2, 0, 0, 0, 110, 111, 0, 0, 212, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 0, 99, 111, 110, 116, 105,
@@ -48,5 +35,18 @@ fn main() {
 
     let ((_r, p, _e), _): ((&str, HashMap<&str, Value<'_>>, &str), _) = data.deserialize().unwrap();
     println!("{:?}", p);
+
+    #[derive(Debug, DeserializeDict, SerializeDict, Type)]
+    #[zvariant(signature = "dict")]
+    pub struct Properties {
+        #[zvariant(rename = "continue-label")]
+        continue_label: String,
+        description: String,
+        message: String,
+        #[zvariant(rename = "caller-window")]
+        caller_window: String,
+        #[zvariant(rename = "cancel-label")]
+        cancel_label: String,
+    }
     let ((_r, _p, _e), _): ((&str, Properties, &str), _) = data.deserialize().unwrap();
 }
