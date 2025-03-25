@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use zbus::zvariant::{
-    self, serialized::Data, DeserializeDict, SerializeDict, Type, Value, NATIVE_ENDIAN,
+    self, serialized::Data, DeserializeDict, DeserializeValue, SerializeDict, Type, Value,
+    NATIVE_ENDIAN,
 };
 
 fn main() {
@@ -33,8 +34,9 @@ fn main() {
     let ctxt = zvariant::serialized::Context::new_dbus(NATIVE_ENDIAN, 0);
     let data = Data::new(&data, ctxt);
 
-    let ((_r, p, _e), _): ((&str, HashMap<&str, Value<'_>>, &str), _) = data.deserialize().unwrap();
-    println!("{:?}", p);
+    let ((_r, p, _e), _): ((&str, HashMap<&str, DeserializeValue<&str>>, &str), _) =
+        data.deserialize().unwrap();
+    //println!("{:?}", p);
 
     #[derive(Debug, DeserializeDict, SerializeDict, Type)]
     #[zvariant(signature = "dict")]
